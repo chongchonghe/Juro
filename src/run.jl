@@ -1,6 +1,7 @@
 #!/usr/bin/env julia
 
-using hydro
+include("./Juro.jl")
+using .Juro
 using ArgParse
 
 
@@ -128,9 +129,10 @@ function main1()
         exit(1)
     end
 
-    hydro(dim, args["nx"], args["tend"], args["folder"], init, solver,
-          integrator, fillbc, plotit; dtout=args["dtout"],
-          ng=ng, ny=args["ny"], storealldata=args["storealldata"],
+    hydro(dim, args["nx"], args["tend"], args["folder"], init;
+          solver=solver, integrator=integrator, fillbc=fillbc, plotit=plotit,
+          dtout=args["dtout"], ng=ng, ny=args["ny"],
+          storealldata=args["storealldata"],
           restart=args["restart"], islog=true)
 
     return

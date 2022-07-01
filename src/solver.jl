@@ -3,10 +3,10 @@
 # LAX scheme
 function lax(g::Grid)
     fu = calc_flux(g)
-    for j = 1:3, i = g.jlo:g.jhi
+    for k = 1:3, i = g.jlo:g.jhi
         # calculate L(u)
-        g.lu[i, j] = -0.5 / g.dx * (fu[i + 1, j] - fu[i - 1, j])
-        # replace g.u with (g.u[i-1, j] + g.u[i+1, j]) / 2
+        g.lu[i, k] = -0.5 / g.dx * (fu[i + 1, k] - fu[i - 1, k])
+        # replace g.u with (g.u[i-1, k] + g.u[i+1, k]) / 2
         g.u[i, k] = 0.5 * (g.u[i-1, k] + g.u[i+1, k])
     end
     # @. g.u[g.jlo:g.jhi, :] = 0.5 * (g.u[g.jlo-1:g.jhi-1, :] + g.u[g.jlo+1:g.jhi+1, :])

@@ -1,0 +1,26 @@
+Running hydro.jl, a modular 1- and 2-dimensional hydrodynamic
+code written in pure Julia.
+Author: Chong-Chong He (che1234@umd.edu)
+
+Solving the following problem with parameters:
+Initial condition: init_sod
+nx = 128
+dtout = 0.01
+tend = 0.1
+Riemann solver: hll2nd
+Integrator: RK3
+Boundary condition: fill_trans_bc
+Plotting function: plot_curve_or_heat
+
+count = 0, fcount = 0, t = 0.0
+count = 3, fcount = 1, t = 0.011942930523755646, tout = 0.01
+count = 6, fcount = 2, t = 0.021150026751997498, tout = 0.02
+count = 10, fcount = 3, t = 0.03286491428228455, tout = 0.03
+count = 13, fcount = 4, t = 0.041410359869889064, tout = 0.04
+count = 17, fcount = 5, t = 0.05269387576777679, tout = 0.05
+count = 20, fcount = 6, t = 0.06112323906182654, tout = 0.060000000000000005
+count = 24, fcount = 7, t = 0.07236797488428322, tout = 0.07
+count = 27, fcount = 8, t = 0.08082085935619074, tout = 0.08
+count = 31, fcount = 9, t = 0.0921170576915571, tout = 0.09
+count = 34, fcount = 10, t = 0.10060295372368772, tout = 0.09999999999999999
+Simulation done.

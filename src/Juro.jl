@@ -17,10 +17,10 @@ include("plot.jl")
 
 
 """ A general-purpose hydro solver """
-function hydro(dim, nx, tend, folder::String, init::Function,
+function hydro(dim, nx, tend, folder::String, init::Function;
                solver::Function=hll2nd, integrator::Function=RK3,
                fillbc::Function=fill_trans_bc,
-               plotit::Function=plot_curve_or_heat;
+               plotit::Function=plot_curve_or_heat,
                dtout::Float64=0.01, ng=2, ny::Int64=-1,
                storealldata::Bool=false, restart=-1,
                islog::Bool=true)
