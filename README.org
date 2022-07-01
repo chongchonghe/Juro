@@ -1,0 +1,64 @@
+#+HTML_HEAD: <style type="text/css"> body { color: black; max-width: 1200px; } img {max-width: 400px; } </style>
+
+* Hydro code written in pure Julia
+
+** Test various solvers and schemes
+
+1D
+
+- Lax + Euler, nx = 128. error(t=0.095) = 0.0054
+
+  [[file:figures/test-1d-lax-euler/f-nx128-003.png]]
+
+- HLL 1st order + Euler, nx = 128. error(t=0.091) = 0.0035
+
+  ~julia hydro.jl sod 128 0.1 figures/test-2d-sod2d-hll1st_new-euler-new-tmp curve hll1st euler --dnout 10~
+
+  [[file:figures/test-1d-hll1st_v3-euler-t/f-nx128-003.png]]
+
+- HLL 2nd order + RK3, nx = 512, error at t=0.10 is 0.00047.
+
+  [[file:figures/test-1d-hll2nd-RK3/f-nx512-014.png]]
+
+2D
+
+- Lax + Euler, nx = 128. error(t=0.1) = 0.0063. 
+
+  [[file:figures/test-2d-sod2d-lax_new_v2-euler-new2/f-nx128-005.png]]
+
+- HLL 1st order + Euler. error(t=0.097) = 0.0037. 
+
+  ~julia hydro.jl sod2d 256 0.1 figures/test-2d-sod2d-hll1st_new-euler-new-tmp curve hll1st euler --dnout 10~
+
+  ~julia hydro.jl sod2d 128 0.1 figures/test-2d-sod2d-hll1st-euler curve hll1st euler --dnout 10~
+
+  [[file:figures/test-2d-sod2d-hll1st_new-euler-new/f-nx256-010.png]]
+
+- HLL 2nd order + RK3, error at t = 0.093 is 0.0017, ~julia hydro.jl sod2d 128 0.1 figures/test-2d-sod2d-hll2nd-RK3 curve hll2nd RK3 --dnout 10 --ng 2~
+
+* Usage
+
+First, clone this repository to a directory
+
+#+BEGIN_SRC sh
+git clone 
+#+END_SRC
+
+
+** Command line interface
+
+...
+
+** REPL
+
+You can use Juro.jl via Julia REPL (read-eval-print loop).
+
+#+begin_src 
+julia> include("Juro.jl/src/Juro.jl")
+
+julia> using .Juro
+
+julia> hydro(1, 512, 0.1, "tmp", init_sod)
+
+julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
+#+end_src
