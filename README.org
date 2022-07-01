@@ -48,7 +48,9 @@ julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 	  - =julia>= ~hydro(2, 512, 1.0, "examples/test-2d-KH", init_KH, dtout=0.01)~
 	  - TODO: add this figure from st
 	  # - [[file:examples/test-2d-KH-512/hydro-00300.png]]
-	  - [[file:examples/test-2d-KH-512/hydro-00190.png]]
+	  - Snapshot (click to download a video)
+
+[[[[file:examples/test-2d-KH-512\][test-2d-KH-512.mp4\][file:examples/test-2d-KH-512/hydro-00190.png]\]]]
 
 *** 1D, Sod
 
