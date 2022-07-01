@@ -41,6 +41,15 @@ julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 
 ** Examples
 
+*** 2D, KH		
+
+- HLL 2nd order + RK3, nx = 512.
+	  - ~julia Juro.jl/src/run.jl KH 512 1.0 examples/test-2d-KH --dtout 0.01~
+	  - =julia>= ~hydro(2, 512, 1.0, "examples/test-2d-KH", init_KH, dtout=0.01)~
+	  - TODO: add this figure from st
+	  # - [[file:examples/test-2d-KH-512/hydro-00300.png]]
+	  - [[file:examples/test-2d-KH-512/hydro-00190.png]]
+
 *** 1D, Sod
 
 - HLL 2nd order + RK3, nx = 512, error at t=0.10 is 0.00047.
@@ -59,13 +68,4 @@ julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 	  - ~julia Juro.jl/src/run.jl sod2d 128 0.1 examples/test-2d-sod2d --dtout 0.01 --plot curve~
 	  - =julia>= ~hydro(2, 128, 0.1, "examples/test-2d-sod2d", init_sod, plotit=plot_curve, dtout=0.01)~
 	  - [[file:examples/test-2d-sod2d-128/hydro_00010.png]]
-
-*** 2D, KH		
-
-- HLL 2nd order + RK3, nx = 512.
-	  - ~julia Juro.jl/src/run.jl KH 512 1.0 examples/test-2d-KH --dtout 0.01~
-	  - =julia>= ~hydro(2, 512, 1.0, "examples/test-2d-KH", init_KH, dtout=0.01)~
-	  - TODO: add this figure from st
-	  # - [[file:examples/test-2d-KH-512/hydro-00300.png]]
-	  - [[file:examples/test-2d-KH-512/hydro-00190.png]]
 
