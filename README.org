@@ -43,31 +43,31 @@ julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 
 *** 2D, KH		
 
-- HLL 2nd order + RK3, nx = 512.
+- Kelvin-Helmholtz instability test. HLL 2nd order + RK3, nx = 512.
 	  - ~julia Juro.jl/src/run.jl KH 512 1.0 examples/test-2d-KH --dtout 0.01~
 	  - =julia>= ~hydro(2, 512, 1.0, "examples/test-2d-KH", init_KH, dtout=0.01)~
 	  - TODO: add this figure from st
 	  # - [[file:examples/test-2d-KH-512/hydro-00300.png]]
-	  - Snapshot (click the picture or here to download a video: [[file:examples/test-2d-KH-512/KH-3M.mp4][3M]] [[file:examples/test-2d-KH-512/KH-61M.mp4][61M]]):
+	  - A snapshot showing the density at t=0.63. (Click on the picture or here to download a video that goes from t=0 to t=2: [[file:examples/test-2d-KH-512/KH-3M.mp4][3M]] [[file:examples/test-2d-KH-512/KH-61M.mp4][61M]]):
 
 		#+attr_html: :width 600pt
            [[file:examples/test-2d-KH-512/KH-3M.mp4][file:examples/test-2d-KH-512/hydro-00190.png]]
 
 *** 1D, Sod
 
-- HLL 2nd order + RK3, nx = 512, error at t=0.10 is 0.00047.
+- 1D Sod shock tube problem. HLL 2nd order + RK3, nx = 128.
 	  - ~julia Juro.jl/src/run.jl sod 128 0.1 examples/test-1d-sod~, or
 	  - =julia>= ~hydro(1, 128, 0.1, "examples/test-1d-sod", init_sod)~
 	  - [[file:examples/test-1d-sod-128/hydro_00010.png]]
 
-- Lax + Euler, nx = 128, error at t=0.095 is 0.0054.
+- 1D Sod shock tube problem. Lax + Euler, nx = 128.
 	  - ~julia Juro.jl/src/run.jl sod 128 0.1 examples/test-1d-sod-lax-euler lax euler~, or
 	  - =julia>= ~hydro(1, 128, 0.1, "examples/test-1d-sod-lax-euler", init_sod, solver=lax, integrator=euler)~
 	  - [[file:examples/test-1d-sod-lax-euler-128/hydro_00010.png]]
 
 *** 2D, Sod
 
-- HLL 2nd order + RK3, nx = 128, error at t = 0.093 is 0.0017
+- 2D Sod shock tube problem. HLL 2nd order + RK3, nx = 128.
 	  - ~julia Juro.jl/src/run.jl sod2d 128 0.1 examples/test-2d-sod2d --dtout 0.01 --plot curve~
 	  - =julia>= ~hydro(2, 128, 0.1, "examples/test-2d-sod2d", init_sod, plotit=plot_curve, dtout=0.01)~
 	  - [[file:examples/test-2d-sod2d-128/hydro_00010.png]]

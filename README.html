@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2022-07-01 Fri 19:13 -->
+<!-- 2022-07-01 Fri 19:23 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>&lrm;</title>
@@ -198,13 +198,13 @@
 <body>
 <div id="content" class="content">
 
-<div id="outline-container-orgaa5b732" class="outline-2">
-<h2 id="orgaa5b732">Juro: a hydro code written in pure Julia</h2>
-<div class="outline-text-2" id="text-orgaa5b732">
+<div id="outline-container-org1f7a5b8" class="outline-2">
+<h2 id="org1f7a5b8">Juro: a hydro code written in pure Julia</h2>
+<div class="outline-text-2" id="text-org1f7a5b8">
 </div>
-<div id="outline-container-org0695517" class="outline-3">
-<h3 id="org0695517">Usage</h3>
-<div class="outline-text-3" id="text-org0695517">
+<div id="outline-container-orge2b5a43" class="outline-3">
+<h3 id="orge2b5a43">Usage</h3>
+<div class="outline-text-3" id="text-orge2b5a43">
 <p>
 First, clone this repository to a directory
 </p>
@@ -219,9 +219,9 @@ Then, you can use this module either with command line interface or Julia REPL.
 </p>
 </div>
 
-<div id="outline-container-org139ef39" class="outline-4">
-<h4 id="org139ef39">Run with the command line interface</h4>
-<div class="outline-text-4" id="text-org139ef39">
+<div id="outline-container-orgb008a6c" class="outline-4">
+<h4 id="orgb008a6c">Run with the command line interface</h4>
+<div class="outline-text-4" id="text-orgb008a6c">
 <div class="org-src-container">
 <pre class="src src-sh">julia Juro.jl/src/run.jl sod 128 0.1 tmp
 julia Juro.jl/src/run.jl KH 512 1 examples/KH_512
@@ -238,9 +238,9 @@ Optionally adding a <code>-i</code> option to the <code>julia</code> command mak
 </div>
 </div>
 
-<div id="outline-container-org41bda9d" class="outline-4">
-<h4 id="org41bda9d">Run with REPL</h4>
-<div class="outline-text-4" id="text-org41bda9d">
+<div id="outline-container-org1db467d" class="outline-4">
+<h4 id="org1db467d">Run with REPL</h4>
+<div class="outline-text-4" id="text-org1db467d">
 <p>
 You can use Juro.jl via Julia REPL (read-eval-print loop).
 </p>
@@ -259,16 +259,16 @@ julia&gt; hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 </div>
 
 
-<div id="outline-container-org40222e0" class="outline-3">
-<h3 id="org40222e0">Examples</h3>
-<div class="outline-text-3" id="text-org40222e0">
+<div id="outline-container-orgd6306da" class="outline-3">
+<h3 id="orgd6306da">Examples</h3>
+<div class="outline-text-3" id="text-orgd6306da">
 </div>
-<div id="outline-container-org5233449" class="outline-4">
-<h4 id="org5233449">2D, KH</h4>
-<div class="outline-text-4" id="text-org5233449">
+<div id="outline-container-org04ef830" class="outline-4">
+<h4 id="org04ef830">2D, KH</h4>
+<div class="outline-text-4" id="text-org04ef830">
 <ul class="org-ul">
 <li><p>
-HLL 2nd order + RK3, nx = 512.
+Kelvin-Helmholtz instability test. HLL 2nd order + RK3, nx = 512.
 </p>
 <ul class="org-ul">
 <li><code>julia Juro.jl/src/run.jl KH 512 1.0 examples/test-2d-KH --dtout 0.01</code></li>
@@ -278,11 +278,11 @@ HLL 2nd order + RK3, nx = 512.
 
 <ul class="org-ul">
 <li><p>
-Snapshot (click the picture or here to download a video: <a href="examples/test-2d-KH-512/KH-3M.mp4">3M</a> <a href="examples/test-2d-KH-512/KH-61M.mp4">61M</a>):
+A snapshot showing the density at t=0.63. (Click on the picture or here to download a video that goes from t=0 to t=2: <a href="examples/test-2d-KH-512/KH-3M.mp4">3M</a> <a href="examples/test-2d-KH-512/KH-61M.mp4">61M</a>):
 </p>
 
 
-<div id="org3b312b9" class="figure">
+<div id="orgcc3f28c" class="figure">
 <p><a href="examples/test-2d-KH-512/KH-3M.mp4" width="600pt"><img src="examples/test-2d-KH-512/hydro-00190.png" alt="hydro-00190.png" width="600pt" /></a>
 </p>
 </div></li>
@@ -291,18 +291,18 @@ Snapshot (click the picture or here to download a video: <a href="examples/test-
 </div>
 </div>
 
-<div id="outline-container-org9b6becf" class="outline-4">
-<h4 id="org9b6becf">1D, Sod</h4>
-<div class="outline-text-4" id="text-org9b6becf">
+<div id="outline-container-org88f22ab" class="outline-4">
+<h4 id="org88f22ab">1D, Sod</h4>
+<div class="outline-text-4" id="text-org88f22ab">
 <ul class="org-ul">
-<li>HLL 2nd order + RK3, nx = 512, error at t=0.10 is 0.00047.
+<li>1D Sod shock tube problem. HLL 2nd order + RK3, nx = 128.
 <ul class="org-ul">
 <li><code>julia Juro.jl/src/run.jl sod 128 0.1 examples/test-1d-sod</code>, or</li>
 <li><code>julia&gt;</code> <code>hydro(1, 128, 0.1, "examples/test-1d-sod", init_sod)</code></li>
 <li><img src="examples/test-1d-sod-128/hydro_00010.png" alt="hydro_00010.png" /></li>
 </ul></li>
 
-<li>Lax + Euler, nx = 128, error at t=0.095 is 0.0054.
+<li>1D Sod shock tube problem. Lax + Euler, nx = 128.
 <ul class="org-ul">
 <li><code>julia Juro.jl/src/run.jl sod 128 0.1 examples/test-1d-sod-lax-euler lax euler</code>, or</li>
 <li><code>julia&gt;</code> <code>hydro(1, 128, 0.1, "examples/test-1d-sod-lax-euler", init_sod, solver=lax, integrator=euler)</code></li>
@@ -312,11 +312,11 @@ Snapshot (click the picture or here to download a video: <a href="examples/test-
 </div>
 </div>
 
-<div id="outline-container-orgce3903a" class="outline-4">
-<h4 id="orgce3903a">2D, Sod</h4>
-<div class="outline-text-4" id="text-orgce3903a">
+<div id="outline-container-orgd36f28d" class="outline-4">
+<h4 id="orgd36f28d">2D, Sod</h4>
+<div class="outline-text-4" id="text-orgd36f28d">
 <ul class="org-ul">
-<li>HLL 2nd order + RK3, nx = 128, error at t = 0.093 is 0.0017
+<li>2D Sod shock tube problem. HLL 2nd order + RK3, nx = 128.
 <ul class="org-ul">
 <li><code>julia Juro.jl/src/run.jl sod2d 128 0.1 examples/test-2d-sod2d --dtout 0.01 --plot curve</code></li>
 <li><code>julia&gt;</code> <code>hydro(2, 128, 0.1, "examples/test-2d-sod2d", init_sod, plotit=plot_curve, dtout=0.01)</code></li>
