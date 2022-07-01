@@ -3,6 +3,24 @@
 
 * Juro: a hydro code written in pure Julia
 
+** About
+
+- Riemann solver
+	  - HLL 1st order
+	  - HLL 2nd order
+- Integrator
+	  - Euler
+	  - RK2
+	  - RK3
+- Initial conditions
+	  - 2D Kelvin-Helmholtz instability
+	  - 1D and 2D sod shock tube
+- Boundary condition
+	  - Transimissive
+	  - Periodic
+
+TODO: add descriptions to the Riemann solvers, interpolation method, etc.
+
 ** Usage
 
 First, clone this repository to a directory
