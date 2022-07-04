@@ -62,7 +62,6 @@ julia> hydro(1, 512, 0.1, "tmp", init_sod)
 julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 #+end_src
 
-
 ** Examples
 
 *** 2D, KH		
@@ -96,3 +95,7 @@ julia> hydro(1, 512, 0.2, "tmp", init_sod, restart=10)
 	  - =julia>= ~hydro(2, 128, 0.1, "examples/test-2d-sod2d", init_sod, plotit=plot_curve, dtout=0.01)~
 	  - [[file:examples/test-2d-sod2d-128/hydro_00010.png]]
 
+
+** TODOs
+
+- Finish wave_speed_1_x and wave_speed_1_y, then update hll2nd(Grid), hll1st(Grid2d), hll2nd(Grid2d)

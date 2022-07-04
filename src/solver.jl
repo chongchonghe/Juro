@@ -14,7 +14,7 @@ function util_speed_davis2(uL, uR, csL, csR)
 end
 
 
-# LAX scheme
+# LAX scheme, 1D
 function lax(g::Grid)
     fu = calc_flux(g)
     for k = 1:3, i = g.jlo:g.jhi
@@ -28,6 +28,7 @@ function lax(g::Grid)
 end
 
 
+# LAX scheme, 2D
 function lax(g::Grid2d)
     F, G = calc_flux(g)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
@@ -42,16 +43,19 @@ function lax(g::Grid2d)
 end
 
 
-""" HLL Riemann solver, 1st order. Piecewise constant construction is applied
-where the left and right states on the interface are simply
-    U_{i+1/2},L = u_{i}
-    U_{i+1/2},R = u_{i+1}
-The wave-speeds are estimated via the simple expression:
-    S_L = min{U_L - a_L, U_R - a_R}
-    S_R = max{U_L + a_L, U_R + a_R}
-"""
+# Wave speed estimater: uL - aL and uR + aR
+function wave_speed_estimates_0(g::Grid)
+    lam_minus = similar(g.cs)
+    lam_plus = similar(g.cs)
+    for i = g.jlo-1:g.jhi
+        lam_minus[i] = g.vel[i] - g.cs[i]
+        lam_plus[i] = g.vel[i+1] + g.cs[i+1]
+    end
+    return lam_minus, lam_plus
+end
 
-# min(uL - aL, uR - aR) and max(uL + aL, uR + aR)
+
+# Wave speed estimater: min(uL - aL, uR - aR) and max(uL + aL, uR + aR)
 function wave_speed_estimates_1(g::Grid)
     plus = g.vel .+ g.cs
     minus = g.vel .- g.cs
@@ -64,20 +68,31 @@ function wave_speed_estimates_1(g::Grid)
     return lam_minus, lam_plus
 end
 
-
-# uL - aL and uR + aR
-function wave_speed_estimates_0(g::Grid)
-    lam_minus = similar(g.cs)
-    lam_plus = similar(g.cs)
-    for i = g.jlo-1:g.jhi
-        lam_minus[i] = g.vel[i] - g.cs[i]
-        lam_plus[i] = g.vel[i+1] + g.cs[i+1]
+function wave_speed_1_x(g::Grid2d)
+    plus = g.vx .+ g.cs
+    minus = g.vx .- g.cs
+    lam_plus = similar(plus)
+    lam_minus = similar(plus)
+    for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
+        lam_plus[i, j] = max(plus[i, j], plus[i+1, j])
+        lam_minus[i, j] = min(minus[i, j], minus[i+1, j])
     end
     return lam_minus, lam_plus
 end
 
+function wave_speed_1_y(g::Grid2d)
+    plus = g.vy .+ g.cs
+    minus = g.vy .- g.cs
+    lam_plus = similar(plus)
+    lam_minus = similar(plus)
+    for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
+        lam_plus[i, j] = max(plus[i, j], plus[i, j+1])
+        lam_minus[i, j] = min(minus[i, j], minus[i, j+1])
+    end
+    return lam_minus, lam_plus
+end
 
-# Roe 1981 JCP 43:357–372
+# Wave speed estimater: Roe 1981 JCP 43:357–372. UNFINISHED
 function wave_speed_estimates_2(g::Grid)
     # TODO: finish this.
     uhat = @. (sqrt(g.rhoL) * g.velL + sqrt(g.rhoR) * g.velR) / (sqrt(g.rhoL) + sqrt(g.rhoR))
@@ -91,6 +106,14 @@ function wave_speed_estimates_2(g::Grid)
 end
 
 
+""" HLL Riemann solver, 1st order. Piecewise constant construction is applied
+where the left and right states on the interface are simply
+    U_{i+1/2},L = u_{i}
+    U_{i+1/2},R = u_{i+1}
+The wave-speeds are estimated via the simple expression:
+    S_L = min{U_L - a_L, U_R - a_R}
+    S_R = max{U_L + a_L, U_R + a_R}
+"""
 function hll1st(g::Grid)
     fu = calc_flux(g)
     # calculate the eigenvalues
@@ -144,10 +167,10 @@ function hll1st(g::Grid)
 end
 
 
-""" HLL, 1st order. Modified based on Toro's book and Springel's notes """
+""" HLL, 1st order. Modified based on Toro's book and Springel's notes.
+UNFINISHED """
 function hll1st_toro(g::Grid)
     # TODO. Start from here. See Section 10.5.1 of Toro's book
-
     fu = calc_flux(g)
     # calculate the eigenvalues
     lam_plus = g.vel .+ g.cs
@@ -245,6 +268,7 @@ function hll2nd(g::Grid)
         g.lu[i, k] = - (g.fhll[i, k] - g.fhll[i-1, k]) / g.dx
     end
 
+    # debug
     @debug "\ng.t = $(g.t)"
     @debug "all the terms in fhll:"
     i = g.xmid
@@ -261,16 +285,20 @@ function hll1st(g::Grid2d)
     F, G = calc_flux(g)
 
     # vx
-    lam_plus = g.vx .+ g.cs
-    lam_minus = g.vx .- g.cs
-    alpha_plus = similar(g.vx)
-    alpha_minus = similar(g.vx)
-    # this is equivalent to the "if 0 <= SL, if 0 > SR" version in Toro's book
+    lam_minus, lam_plus = wave_speed_1_x(g)
     for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        alpha_plus[i, j] = max(0.0, lam_plus[i, j], lam_plus[i+1, j])
-        alpha_minus[i, j] = max(0.0, -lam_minus[i, j], -lam_minus[i+1, j])
+        alpha_plus[i, j] = max(0.0, lam_plus[i, j])
+        alpha_minus[i, j] = max(0.0, -lam_minus[i, j])
     end
-
+    # lam_plus = g.vx .+ g.cs
+    # lam_minus = g.vx .- g.cs
+    # alpha_plus = similar(g.vx)
+    # alpha_minus = similar(g.vx)
+    # # this is equivalent to the "if 0 <= SL, if 0 > SR" version in Toro's book
+    # for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
+    #     alpha_plus[i, j] = max(0.0, lam_plus[i, j], lam_plus[i+1, j])
+    #     alpha_minus[i, j] = max(0.0, -lam_minus[i, j], -lam_minus[i+1, j])
+    # end
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
         g.fhll[i, j, k] = (alpha_plus[i, j] * F[i, j, k] +
             alpha_minus[i, j] * F[i+1, j, k] -
@@ -282,14 +310,19 @@ function hll1st(g::Grid2d)
         g.lu[i, j, k] = - (g.fhll[i, j, k] - g.fhll[i-1, j, k]) / g.dx
     end
     # vy
-    lam_plus = g.vy .+ g.cs
-    lam_minus = g.vy .- g.cs
-    alpha_plus = similar(g.vy)
-    alpha_minus = similar(g.vy)
+    lam_minus, lam_plus = wave_speed_1_y(g)
     for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        alpha_plus[i, j] = max(0.0, lam_plus[i, j], lam_plus[i, j+1])
-        alpha_minus[i, j] = max(0.0, -lam_minus[i, j], -lam_minus[i, j+1])
+        alpha_plus[i, j] = max(0.0, lam_plus[i, j])
+        alpha_minus[i, j] = max(0.0, -lam_minus[i, j])
     end
+    # lam_plus = g.vy .+ g.cs
+    # lam_minus = g.vy .- g.cs
+    # alpha_plus = similar(g.vy)
+    # alpha_minus = similar(g.vy)
+    # for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
+    #     alpha_plus[i, j] = max(0.0, lam_plus[i, j], lam_plus[i, j+1])
+    #     alpha_minus[i, j] = max(0.0, -lam_minus[i, j], -lam_minus[i, j+1])
+    # end
     for k = 1:4, j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
         g.fhll[i, j, k] = (alpha_plus[i, j] * G[i, j, k] +
             alpha_minus[i, j] * G[i, j+1, k] -
@@ -333,14 +366,13 @@ function hll2nd(g::Grid2d)
             alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) /
             (alpha_plus[i, j] + alpha_minus[i, j])
     end
-    # calculate L(u)
+    # calculate L(u) contributed by the x component of the flux
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
         g.lu[i, j, k] = - (g.fhll[i, j, k] - g.fhll[i-1, j, k]) / g.dx
     end
 
     # y component
     interpolate_y(g)
-
     # alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
     # alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
     lam_minus = similar(g.cs)
@@ -358,11 +390,13 @@ function hll2nd(g::Grid2d)
     end
     calc_flux!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.yfu[i, j, k] -
-            alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) /
+        g.fhll[i, j, k] = (g.fhll[i, j, k] +
+            alpha_minus[i, j] * g.yfu[i, j, k] -
+            alpha_plus[i, j] * alpha_minus[i, j] *
+            (g.uR[i, j, k] - g.uL[i, j, k])) /
             (alpha_plus[i, j] + alpha_minus[i, j])
     end
-    # calculate L(u)
+    # calculate L(u) contributed by the y component of the flux
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
         g.lu[i, j, k] += - (g.fhll[i, j, k] - g.fhll[i, j-1, k]) / g.dx
     end

@@ -70,40 +70,27 @@ function init_KH(g::Grid2d)
     p = 2.5
     Amp = 0.01
 
-    # g.vy .= 0.0
-    g.pressure .= p
     for j = 1:g.ylen
         if abs(g.y[j] - 0.5) > 0.25
             g.rho[:, j] .= rho1
             g.vx[:, j] .= v1
-            # g.u[:, j, 1] .= rho1
-            # g.u[:, j, 2] .= g.u[:, j, 1] .* -0.5
         else
             g.rho[:, j] .= rho2
             g.vx[:, j] .= v2
-            # g.u[:, j, 1] .= rho2
-            # g.u[:, j, 2] .= g.u[:, j, 1] .* 0.5
         end
     end
-    # g.u[:, :, 3] .= 0.          # vy = 0
-    # pressure = ones(Float64, g.xlen, g.ylen) .* 2.5
-    # g.u[:, :, 4] .= pressure ./ (g.gamma - 1)
-    # # initial perturbation
-    # g.u[:, :, 2] .+= 0.1 * (1 .- 2 * rand(g.xlen, g.ylen)) .* g.u[:, :, 1]
-    # g.u[:, :, 3] .+= 0.1 * (1 .- 2 * rand(g.xlen, g.ylen)) .* g.u[:, :, 1]
+    g.pressure .= p
+    # # initial perturbation, old version
+    # g.u[:, :, 2] .+= 0.01 * (1 .- 2 * rand(g.xlen, g.ylen)) .* g.u[:, :, 1]
+    # g.u[:, :, 3] .+= 0.01 * (1 .- 2 * rand(g.xlen, g.ylen)) .* g.u[:, :, 1]
     # initial perturbation: sin wave, Springel 2009
     σ = 0.05
-    for j = 1:g.ylen
-        # y = j / g.ylen
+    for j = g.yjlo:g.yjhi
         y = g.y[j]
         # vy = 0.01 * sin.(4 * pi * collect(1:g.xlen) / g.xlen)
         # expo = - (y - 0.25)^2 / (2 * σ^2) + (y - 0.75)^2 / (2 * σ^2)
-        vy = 0.1 * sin.(4 * pi * g.x) .* (exp(- (y - 0.25)^2 / (2 * σ^2)) .+ exp.(- (y - 0.75)^2 / (2 * σ^2)))
-        # println("y = $y, vy max = $(maximum(vy)), expo max = $(maximum(expo))")
-        # g.u[:, j, 3] .= vy .* g.u[:, j, 1]
-        g.vy[:, j] .= vy
+        g.vy[:, j] .= 0.1 * sin.(4 * pi * g.x) .* (exp(- (y - 0.25)^2 / (2 * σ^2)) .+ exp.(- (y - 0.75)^2 / (2 * σ^2)))
     end
-    # cons2prim(g)
     return
 end
 
@@ -156,7 +143,7 @@ function init_KH_rand(g::Grid2d)
             g.vx[:, j] .= 0.1
         end
     end
-    g.vx .+= Amp .* rand(size(g.vx))
-    g.vy .= Amp .* rand(size(g.vx))
+    g.vx .+= Amp .* (2 * rand(size(g.vx)) - 1.0)
+    g.vy .= Amp .* (2 * rand(size(g.vx)) - 1.0)
     g.pressure .= p
 end
