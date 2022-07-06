@@ -4,6 +4,7 @@ local/
 trys/
 figures
 tests/
+examples.2/
 
 # General
 .DS_Store

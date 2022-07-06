@@ -1,4 +1,18 @@
+# Requires grid.jl, flux.jl, reconstruction.jl
+
 """ Solver """
+
+# uL - aL, uR - aR
+function util_speed_davis1(uL, uR, csL, csR)
+    return uL - csL, uR - csR
+end
+
+
+# min(uL - aL, uR - aR), max(uL + aL, uR + aR)
+function util_speed_davis2(uL, uR, csL, csR)
+    return min(uL - csL, uR - csR), max(uL + csL, uR + csR)
+end
+
 
 # LAX scheme
 function lax(g::Grid)
@@ -18,9 +32,11 @@ function lax(g::Grid2d)
     F, G = calc_flux(g)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
         # calculate L(u)
-        g.lu[i, j, k] = -0.5 / g.dx * (F[i + 1, j, k] - F[i - 1, j, k]) - 0.5 / g.dy * (G[i, j + 1, k] - G[i, j - 1, k])
+        g.lu[i, j, k] = -0.5 / g.dx * (F[i + 1, j, k] - F[i - 1, j, k]) -
+            0.5 / g.dy * (G[i, j + 1, k] - G[i, j - 1, k])
         # replace g.u with (g.u[i-1, j] + g.u[i+1, j]) / 2
-        g.u[i, j, k] = 0.25 * (g.u[i-1, j, k] + g.u[i+1, j, k] + g.u[i, j-1, k] + g.u[i, j+1, k])
+        g.u[i, j, k] = 0.25 * (g.u[i-1, j, k] + g.u[i+1, j, k] +
+            g.u[i, j-1, k] + g.u[i, j+1, k])
     end
     return g.lu
 end
@@ -78,23 +94,35 @@ end
 function hll1st(g::Grid)
     fu = calc_flux(g)
     # calculate the eigenvalues
-    alpha_plus = similar(g.vel)
-    alpha_minus = similar(g.vel)
     # this is equivalent to the "if 0 <= SL, if 0 > SR" version in Toro's book
     # -------- OLD --------
     # lam_plus = g.vel .+ g.cs
     # lam_minus = g.vel .- g.cs
+    # alpha_plus = similar(g.vel)
+    # alpha_minus = similar(g.vel)
     # for i = g.jlo-1:g.jhi
     #     alpha_plus[i] = max(0.0, lam_plus[i], lam_plus[i+1])
     #     alpha_minus[i] = max(0.0, -lam_minus[i], -lam_minus[i+1])
     # end
     # -------- END --------
+    # # -------- NEW --------
+    # lam_minus, lam_plus = wave_speed_estimates_1(g)
+    # alpha_plus = similar(g.vel)
+    # alpha_minus = similar(g.vel)
+    # for i = g.jlo-1:g.jhi
+    #     alpha_plus[i] = max(0.0, lam_plus[i])
+    #     alpha_minus[i] = max(0.0, -lam_minus[i])
+    # end
+    # # -------- END --------
     # -------- NEW --------
-    lam_minus, lam_plus = wave_speed_estimates_1(g)
+    lam_minus = similar(g.cs)
+    lam_plus = similar(g.cs)
     for i = g.jlo-1:g.jhi
-        alpha_plus[i] = max(0.0, lam_plus[i])
-        alpha_minus[i] = max(0.0, -lam_minus[i])
+        lam_minus[i], lam_plus[i] = util_speed_davis2(
+            g.vel[i], g.vel[i+1], g.cs[i], g.cs[i+1])
     end
+    alpha_minus = max.(0.0, -1.0 .* lam_minus)
+    alpha_plus = max.(0.0, lam_plus)
     # -------- END --------
     # calculate the difference of flux
     for k = 1:3, i = g.jlo-1:g.jhi
@@ -151,44 +179,55 @@ function hll1st_toro(g::Grid)
 end
 
 
-function minmod(x, y, z)
-    0.25 * abs(sign(x) + sign(y)) * (sign(x) + sign(z)) *
-        min(abs(x), abs(y), abs(z))
-end
+# function minmod(x, y, z)
+#     0.25 * abs(sign(x) + sign(y)) * (sign(x) + sign(z)) *
+#         min(abs(x), abs(y), abs(z))
+# end
 
 
-""" Interpolate prims (rhoL, rhoR, velL, velR, pressureL, pressureR),
-which then update the cons (uL, uR) """
-function interpolate(g::Grid, theta::Float64=1.5)
-    cdiff = similar(g.prims)
-    for k = 1:3
-        c = @view g.prims[:, k]     # c = rho, vel, pressure for k = 1, 2, 3
-        for i = g.jlo-1:g.jhi+1
-            cdiff[i, k] = 0.5 * minmod(theta * (c[i] - c[i-1]),
-                                       0.5 * (c[i+1] - c[i-1]),
-                                       theta * (c[i+1] - c[i]))
-        end
-    end
-    for k = 1:3, i = g.jlo-1:g.jhi
-        g.primsL[i, k] = g.prims[i, k] + cdiff[i, k]
-        g.primsR[i, k] = g.prims[i+1, k] - cdiff[i+1, k]
-    end
-    for i = g.jlo-1:g.jhi
-        g.csL[i] = prim2cs(g.rhoL[i], g.pressureL[i], g.gamma)
-        g.csR[i] = prim2cs(g.rhoR[i], g.pressureR[i], g.gamma)
-    end
-    # update uR and uL
-    # NOTE: g.rhoL, g.velL, and g.pressureL are links to the rows in
-    # g.primsL, so they update along with it.
-    prim2cons!(g.rhoL, g.velL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-    prim2cons!(g.rhoR, g.velR, g.pressureR, g.uR, g.gamma)
-end
+# """ Interpolate prims (rhoL, rhoR, velL, velR, pressureL, pressureR),
+# which then update the cons (uL, uR) """
+# function interpolate(g::Grid, theta::Float64=1.5)
+#     cdiff = similar(g.prims)
+#     for k = 1:3
+#         c = @view g.prims[:, k]     # c = rho, vel, pressure for k = 1, 2, 3
+#         for i = g.jlo-1:g.jhi+1
+#             cdiff[i, k] = 0.5 * minmod(theta * (c[i] - c[i-1]),
+#                                        0.5 * (c[i+1] - c[i-1]),
+#                                        theta * (c[i+1] - c[i]))
+#         end
+#     end
+#     for k = 1:3, i = g.jlo-1:g.jhi
+#         g.primsL[i, k] = g.prims[i, k] + cdiff[i, k]
+#         g.primsR[i, k] = g.prims[i+1, k] - cdiff[i+1, k]
+#     end
+#     for i = g.jlo-1:g.jhi
+#         g.csL[i] = prim2cs(g.rhoL[i], g.pressureL[i], g.gamma)
+#         g.csR[i] = prim2cs(g.rhoR[i], g.pressureR[i], g.gamma)
+#     end
+#     # update uR and uL
+#     # NOTE: g.rhoL, g.velL, and g.pressureL are links to the rows in
+#     # g.primsL, so they update along with it.
+#     prim2cons!(g.rhoL, g.velL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
+#     prim2cons!(g.rhoR, g.velR, g.pressureR, g.uR, g.gamma)
+# end
+
 
 """ Second-order HLL. This should not change g.u """
 function hll2nd(g::Grid)
-    interpolate(g)
-    alpha_plus = max.(0.0, g.velL .+ g.csL, g.velR .+ g.csR)
-    alpha_minus = max.(0.0, -g.velL .+ g.csL, -g.velR .+ g.csR)
+    # interpolate(g)
+    reconstruct(g)
+
+    # alpha_plus = max.(0.0, g.velL .+ g.csL, g.velR .+ g.csR)
+    # alpha_minus = max.(0.0, -g.velL .+ g.csL, -g.velR .+ g.csR)
+    lam_minus = similar(g.cs)
+    lam_plus = similar(g.cs)
+    for i = g.jlo-1:g.jhi
+        lam_minus[i], lam_plus[i] = util_speed_davis2(
+            g.velL[i], g.velR[i], g.csL[i], g.csR[i])
+    end
+    alpha_minus = max.(0.0, -1.0 .* lam_minus)
+    alpha_plus = max.(0.0, lam_plus)
 
     # save some memory by calculating fhll step by step
     calc_flux!(g.rhoL, g.velL, g.pressureL, g.gamma, g.fu)
@@ -197,7 +236,9 @@ function hll2nd(g::Grid)
     end
     calc_flux!(g.rhoR, g.velR, g.pressureR, g.gamma, g.fu)
     for k = 1:3, i = g.jlo-1:g.jhi
-        g.fhll[i, k] = (g.fhll[i, k] + alpha_minus[i] * g.fu[i, k] - alpha_plus[i] * alpha_minus[i] * (g.uR[i, k] - g.uL[i, k])) / (alpha_plus[i] + alpha_minus[i])
+        g.fhll[i, k] = (g.fhll[i, k] + alpha_minus[i] * g.fu[i, k] -
+            alpha_plus[i] * alpha_minus[i] * (g.uR[i, k] - g.uL[i, k])) /
+            (alpha_plus[i] + alpha_minus[i])
     end
     # calculate L(u)
     for k = 1:3, i = g.jlo:g.jhi
@@ -218,6 +259,7 @@ end
 """ HLL, 1st order. Based on Chapter 7.2.1 of Springel's class notes """
 function hll1st(g::Grid2d)
     F, G = calc_flux(g)
+
     # vx
     lam_plus = g.vx .+ g.cs
     lam_minus = g.vx .- g.cs
@@ -228,6 +270,7 @@ function hll1st(g::Grid2d)
         alpha_plus[i, j] = max(0.0, lam_plus[i, j], lam_plus[i+1, j])
         alpha_minus[i, j] = max(0.0, -lam_minus[i, j], -lam_minus[i+1, j])
     end
+
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
         g.fhll[i, j, k] = (alpha_plus[i, j] * F[i, j, k] +
             alpha_minus[i, j] * F[i+1, j, k] -
@@ -261,50 +304,6 @@ function hll1st(g::Grid2d)
 end
 
 
-function interpolate_x(g::Grid2d)
-    theta = 1.5
-    cdiff = similar(g.prims)
-    for k = 1:4
-        c = @view g.prims[:, :, k]     # c = rho, vx, vy, pressure for k = 1, 2, 3, 4
-        for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi+1
-            cdiff[i, j, k] = 0.5 * minmod(theta * (c[i, j] - c[i-1, j]), 0.5 * (c[i+1, j] - c[i-1, j]), theta * (c[i+1, j] - c[i, j]))
-        end
-    end
-    for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        g.primsL[i, j, k] = g.prims[i, j, k] + cdiff[i, j, k]
-        g.primsR[i, j, k] = g.prims[i+1, j, k] - cdiff[i+1, j, k]
-    end
-    for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        g.csL[i, j] = prim2cs(g.rhoL[i, j], g.pressureL[i, j], g.gamma)
-        g.csR[i, j] = prim2cs(g.rhoR[i, j], g.pressureR[i, j], g.gamma)
-    end
-    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
-end
-
-
-function interpolate_y(g::Grid2d)
-    theta = 1.5
-    cdiff = similar(g.prims)
-    for k = 1:4
-        c = @view g.prims[:, :, k]     # c = rho, vx, vy, pressure for k = 1, 2, 3, 4
-        for j = g.yjlo-1:g.yjhi+1, i = g.xjlo:g.xjhi
-            cdiff[i, j, k] = 0.5 * minmod(theta * (c[i, j] - c[i, j-1]), 0.5 * (c[i, j+1] - c[i, j-1]), theta * (c[i, j+1] - c[i, j]))
-        end
-    end
-    for k = 1:4, j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        g.primsL[i, j, k] = g.prims[i, j, k] + cdiff[i, j, k]
-        g.primsR[i, j, k] = g.prims[i, j+1, k] - cdiff[i, j+1, k]
-    end
-    for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        g.csL[i, j] = prim2cs(g.rhoL[i, j], g.pressureL[i, j], g.gamma)
-        g.csR[i, j] = prim2cs(g.rhoR[i, j], g.pressureR[i, j], g.gamma)
-    end
-    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
-end
-
-
 """ Second-order HLL. This should not change g.u """
 function hll2nd(g::Grid2d)
 
@@ -312,15 +311,27 @@ function hll2nd(g::Grid2d)
 
     # x component
     interpolate_x(g)
-    alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
-    alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
+
+    # alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
+    # alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
+    lam_minus = similar(g.cs)
+    lam_plus = similar(g.cs)
+    for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
+        lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
+            g.vxL[i, j], g.vxR[i, j], g.csL[i, j], g.csR[i, j])
+    end
+    alpha_minus = max.(0.0, -1.0 .* lam_minus)
+    alpha_plus = max.(0.0, lam_plus)
+
     calc_flux!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
         g.fhll[i, j, k] = alpha_plus[i, j] * g.xfu[i, j, k]
     end
     calc_flux!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.xfu[i, j, k] - alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) / (alpha_plus[i, j] + alpha_minus[i, j])
+        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.xfu[i, j, k] -
+            alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) /
+            (alpha_plus[i, j] + alpha_minus[i, j])
     end
     # calculate L(u)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
@@ -329,15 +340,27 @@ function hll2nd(g::Grid2d)
 
     # y component
     interpolate_y(g)
-    alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
-    alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
+
+    # alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
+    # alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
+    lam_minus = similar(g.cs)
+    lam_plus = similar(g.cs)
+    for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
+        lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
+            g.vyL[i, j], g.vyR[i, j], g.csL[i, j], g.csR[i, j])
+    end
+    alpha_minus = max.(0.0, -1.0 .* lam_minus)
+    alpha_plus = max.(0.0, lam_plus)
+
     calc_flux!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
         g.fhll[i, j, k] = alpha_plus[i, j] * g.yfu[i, j, k]
     end
     calc_flux!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.yfu[i, j, k] - alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) / (alpha_plus[i, j] + alpha_minus[i, j])
+        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.yfu[i, j, k] -
+            alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) /
+            (alpha_plus[i, j] + alpha_minus[i, j])
     end
     # calculate L(u)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
