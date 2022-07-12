@@ -43,65 +43,33 @@ function lax(g::Grid2d)
 end
 
 
-# Wave speed estimater: uL - aL and uR + aR
-function wave_speed_estimates_0(g::Grid)
-    lam_minus = similar(g.cs)
-    lam_plus = similar(g.cs)
-    for i = g.jlo-1:g.jhi
-        lam_minus[i] = g.vel[i] - g.cs[i]
-        lam_plus[i] = g.vel[i+1] + g.cs[i+1]
-    end
-    return lam_minus, lam_plus
+# uL - aL, uR - aR
+function util_speed_davis1(uL, uR, csL, csR)
+    return uL - csL, uR - csR
+end
+
+
+# min(uL - aL, uR - aR), max(uL + aL, uR + aR)
+function util_speed_davis2(uL, uR, csL, csR)
+    return min(uL - csL, uR - csR), max(uL + csL, uR + csR)
+end
+
+# Wave speed estimater: Roe 1981 JCP 43:357–372.
+# need L and R states of rho, v, E, p
+function util_speed_roe(rhoL, vL, EL, pL, rhoR, vR, ER, pR)
+    uhat = (sqrt(rhoL) * vL + sqrt(rhoR) * vR) / (sqrt(rhoL) + sqrt(rhoR))
+    HL = (EL + pL) / rhoL
+    HR = (ER + pR) / rhoR
+    Hhat = (sqrt(rhoL) * HL + sqrt(rhoR) * HR) / (sqrt(rhoL) + sqrt(rhoR))
+    ahat = sqrt((gamma - 1) * (Hhat - 0.5 * uhat^2))
+    return uhat - ahat, uhat + ahat
 end
 
 
 # Wave speed estimater: min(uL - aL, uR - aR) and max(uL + aL, uR + aR)
-function wave_speed_estimates_1(g::Grid)
-    plus = g.vel .+ g.cs
-    minus = g.vel .- g.cs
-    lam_plus = similar(plus)
-    lam_minus = similar(plus)
-    for i = g.jlo-1:g.jhi
-        lam_plus[i] = max(plus[i], plus[i+1])
-        lam_minus[i] = min(minus[i], minus[i+1])
-    end
-    return lam_minus, lam_plus
-end
-
-function wave_speed_1_x(g::Grid2d)
-    plus = g.vx .+ g.cs
-    minus = g.vx .- g.cs
-    lam_plus = similar(plus)
-    lam_minus = similar(plus)
-    for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        lam_plus[i, j] = max(plus[i, j], plus[i+1, j])
-        lam_minus[i, j] = min(minus[i, j], minus[i+1, j])
-    end
-    return lam_minus, lam_plus
-end
-
-function wave_speed_1_y(g::Grid2d)
-    plus = g.vy .+ g.cs
-    minus = g.vy .- g.cs
-    lam_plus = similar(plus)
-    lam_minus = similar(plus)
-    for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        lam_plus[i, j] = max(plus[i, j], plus[i, j+1])
-        lam_minus[i, j] = min(minus[i, j], minus[i, j+1])
-    end
-    return lam_minus, lam_plus
-end
-
-# Wave speed estimater: Roe 1981 JCP 43:357–372. UNFINISHED
-function wave_speed_estimates_2(g::Grid)
-    # TODO: finish this.
-    uhat = @. (sqrt(g.rhoL) * g.velL + sqrt(g.rhoR) * g.velR) / (sqrt(g.rhoL) + sqrt(g.rhoR))
-    HL = @. (g.pressureL / (g.gamma - 1) + 0.5 * g.rhoL * g.velL^2 + g.pressureL) / g.rhoL
-    HR = @. (g.pressureR / (g.gamma - 1) + 0.5 * g.rhoR * g.velR^2 + g.pressureR) / g.rhoR
-    Hhat = @. (sqrt(g.rhoL) * HL + sqrt(g.rhoR) * HR) / (sqrt(g.rhoL) + sqrt(g.rhoR))
-    ahat = @. sqrt(g.lambda * (Hhat - 0.5 * uhat^2))
-    lam_minus = uhat - ahat
-    lam_plus = uhat + ahat
+function wave_speed_davis2(g::Grid)
+    lam_minus = min.(g.velL .- g.csL, g.velR .- g.csR)
+    lam_plus = max.(g.velL .+ g.csL, g.velR .+ g.csR)
     return lam_minus, lam_plus
 end
 
@@ -115,74 +83,22 @@ The wave-speeds are estimated via the simple expression:
     S_R = max{U_L + a_L, U_R + a_R}
 """
 function hll1st(g::Grid)
-    fu = calc_flux(g)
+    # # calculate the eigenvalues
+    # lam_minus, lam_plus = wave_speed_davis2(g)
+
     # calculate the eigenvalues
-    # this is equivalent to the "if 0 <= SL, if 0 > SR" version in Toro's book
-    # -------- OLD --------
-    # lam_plus = g.vel .+ g.cs
-    # lam_minus = g.vel .- g.cs
-    # alpha_plus = similar(g.vel)
-    # alpha_minus = similar(g.vel)
-    # for i = g.jlo-1:g.jhi
-    #     alpha_plus[i] = max(0.0, lam_plus[i], lam_plus[i+1])
-    #     alpha_minus[i] = max(0.0, -lam_minus[i], -lam_minus[i+1])
-    # end
-    # -------- END --------
-    # # -------- NEW --------
-    # lam_minus, lam_plus = wave_speed_estimates_1(g)
-    # alpha_plus = similar(g.vel)
-    # alpha_minus = similar(g.vel)
-    # for i = g.jlo-1:g.jhi
-    #     alpha_plus[i] = max(0.0, lam_plus[i])
-    #     alpha_minus[i] = max(0.0, -lam_minus[i])
-    # end
-    # # -------- END --------
-    # -------- NEW --------
-    lam_minus = similar(g.cs)
-    lam_plus = similar(g.cs)
+    lam_plus = similar(g.vel)
+    lam_minus = similar(g.vel)
     for i = g.jlo-1:g.jhi
         lam_minus[i], lam_plus[i] = util_speed_davis2(
             g.vel[i], g.vel[i+1], g.cs[i], g.cs[i+1])
     end
-    alpha_minus = max.(0.0, -1.0 .* lam_minus)
-    alpha_plus = max.(0.0, lam_plus)
-    # -------- END --------
-    # calculate the difference of flux
-    for k = 1:3, i = g.jlo-1:g.jhi
-        g.fhll[i, k] = (alpha_plus[i] * fu[i, k] + alpha_minus[i] * fu[i+1, k]
-                        - alpha_plus[i] * alpha_minus[i] *
-                            (g.u[i+1, k] - g.u[i, k])) /
-                            (alpha_plus[i] + alpha_minus[i])
-    end
-    for k = 1:3, i = g.jlo:g.jhi
-        g.lu[i, k] = - (g.fhll[i, k] - g.fhll[i-1, k]) / g.dx
-    end
-    i = g.xmid
-    @debug "\ng.t = $(g.t)"
-    @debug "all the terms in fhll:"
-    @debug alpha_plus[i], fu[i, 2], alpha_minus[i], fu[i+1, 2], \
-        g.u[i+1, 2], g.u[i, 2]
-    @debug "fhll[$(i), $(2)]: $(g.fhll[i, 2])"
-    return g.lu
-end
 
-
-""" HLL, 1st order. Modified based on Toro's book and Springel's notes.
-UNFINISHED """
-function hll1st_toro(g::Grid)
-    # TODO. Start from here. See Section 10.5.1 of Toro's book
-    fu = calc_flux(g)
-    # calculate the eigenvalues
-    lam_plus = g.vel .+ g.cs
-    lam_minus = g.vel .- g.cs
-    alpha_plus = similar(g.vel)
-    alpha_minus = similar(g.vel)
     # this is equivalent to the "if 0 <= SL, if 0 > SR" version in Toro's book
-    for i = g.jlo-1:g.jhi
-        alpha_plus[i] = max(0.0, lam_plus[i], lam_plus[i+1])
-        alpha_minus[i] = max(0.0, -lam_minus[i], -lam_minus[i+1])
-    end
+    alpha_minus = max.(0.0, -lam_minus)
+    alpha_plus = max.(0.0, lam_plus)
     # calculate the difference of flux
+    fu = calc_flux(g)
     for k = 1:3, i = g.jlo-1:g.jhi
         g.fhll[i, k] = (alpha_plus[i] * fu[i, k] + alpha_minus[i] * fu[i+1, k]
                         - alpha_plus[i] * alpha_minus[i] *
@@ -200,57 +116,28 @@ function hll1st_toro(g::Grid)
     @debug "fhll[$(i), $(2)]: $(g.fhll[i, 2])"
     return g.lu
 end
-
-
-# function minmod(x, y, z)
-#     0.25 * abs(sign(x) + sign(y)) * (sign(x) + sign(z)) *
-#         min(abs(x), abs(y), abs(z))
-# end
-
-
-# """ Interpolate prims (rhoL, rhoR, velL, velR, pressureL, pressureR),
-# which then update the cons (uL, uR) """
-# function interpolate(g::Grid, theta::Float64=1.5)
-#     cdiff = similar(g.prims)
-#     for k = 1:3
-#         c = @view g.prims[:, k]     # c = rho, vel, pressure for k = 1, 2, 3
-#         for i = g.jlo-1:g.jhi+1
-#             cdiff[i, k] = 0.5 * minmod(theta * (c[i] - c[i-1]),
-#                                        0.5 * (c[i+1] - c[i-1]),
-#                                        theta * (c[i+1] - c[i]))
-#         end
-#     end
-#     for k = 1:3, i = g.jlo-1:g.jhi
-#         g.primsL[i, k] = g.prims[i, k] + cdiff[i, k]
-#         g.primsR[i, k] = g.prims[i+1, k] - cdiff[i+1, k]
-#     end
-#     for i = g.jlo-1:g.jhi
-#         g.csL[i] = prim2cs(g.rhoL[i], g.pressureL[i], g.gamma)
-#         g.csR[i] = prim2cs(g.rhoR[i], g.pressureR[i], g.gamma)
-#     end
-#     # update uR and uL
-#     # NOTE: g.rhoL, g.velL, and g.pressureL are links to the rows in
-#     # g.primsL, so they update along with it.
-#     prim2cons!(g.rhoL, g.velL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-#     prim2cons!(g.rhoR, g.velR, g.pressureR, g.uR, g.gamma)
-# end
 
 
 """ Second-order HLL. This should not change g.u """
 function hll2nd(g::Grid)
-    # interpolate(g)
+    @assert g.ng ≥ 2
+
     reconstruct(g)
 
     # alpha_plus = max.(0.0, g.velL .+ g.csL, g.velR .+ g.csR)
     # alpha_minus = max.(0.0, -g.velL .+ g.csL, -g.velR .+ g.csR)
-    lam_minus = similar(g.cs)
-    lam_plus = similar(g.cs)
-    for i = g.jlo-1:g.jhi
-        lam_minus[i], lam_plus[i] = util_speed_davis2(
-            g.velL[i], g.velR[i], g.csL[i], g.csR[i])
-    end
-    alpha_minus = max.(0.0, -1.0 .* lam_minus)
-    alpha_plus = max.(0.0, lam_plus)
+
+    lam_minus, lam_plus = wave_speed_davis2(g) 
+    # # = S_R and S_L of Eq. 10.47 toro
+    # lam_minus = similar(g.cs)
+    # lam_plus = similar(g.cs)
+    # for i = g.jlo-1:g.jhi
+    #     lam_minus[i], lam_plus[i] = util_speed_davis2(
+    #         g.velL[i], g.velR[i], g.csL[i], g.csR[i])
+    # end
+
+    alpha_plus = max.(0.0, lam_plus) 
+    alpha_minus = max.(0.0, -1.0 .* lam_minus) 
 
     # save some memory by calculating fhll step by step
     calc_flux!(g.rhoL, g.velL, g.pressureL, g.gamma, g.fu)
@@ -344,27 +231,34 @@ function hll2nd(g::Grid2d)
 
     # x component
     interpolate_x(g)
-
+    # no potential sqrt error
+    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) 
+    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
     # alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
     # alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
     lam_minus = similar(g.cs)
     lam_plus = similar(g.cs)
     for j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
-            g.vxL[i, j], g.vxR[i, j], g.csL[i, j], g.csR[i, j])
+        # # davis2
+        # lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
+        #     g.vxL[i, j], g.vxR[i, j], g.csL[i, j], g.csR[i, j])
+        # roe
+        lam_minus[i, j], lam_plus[i, j] = util_speed_roe(
+            g.rhoL[i, j], g.vxL[i, j], g.uL[i, j, 4], g.pressureL[i, j],
+            g.rhoR[i, j], g.vxR[i, j], g.uR[i, j, 4], g.pressureR[i, j])
     end
     alpha_minus = max.(0.0, -1.0 .* lam_minus)
     alpha_plus = max.(0.0, lam_plus)
-
     calc_flux!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
         g.fhll[i, j, k] = alpha_plus[i, j] * g.xfu[i, j, k]
     end
     calc_flux!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.gamma, g.xfu, g.yfu)
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo-1:g.xjhi
-        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.xfu[i, j, k] -
-            alpha_plus[i, j] * alpha_minus[i, j] * (g.uR[i, j, k] - g.uL[i, j, k])) /
-            (alpha_plus[i, j] + alpha_minus[i, j])
+        g.fhll[i, j, k] = (g.fhll[i, j, k] + alpha_minus[i, j] * g.xfu[i, j, k]
+                           - alpha_plus[i, j] * alpha_minus[i, j] *
+                               (g.uR[i, j, k] - g.uL[i, j, k])) /
+                               (alpha_plus[i, j] + alpha_minus[i, j])
     end
     # calculate L(u) contributed by the x component of the flux
     for k = 1:4, j = g.yjlo:g.yjhi, i = g.xjlo:g.xjhi
@@ -373,13 +267,21 @@ function hll2nd(g::Grid2d)
 
     # y component
     interpolate_y(g)
+    # no potential sqrt error
+    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) 
+    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
     # alpha_plus = max.(0.0, g.vxL .+ g.csL, g.vxR .+ g.csR)
     # alpha_minus = max.(0.0, -g.vxL .+ g.csL, -g.vxR .+ g.csR)
     lam_minus = similar(g.cs)
     lam_plus = similar(g.cs)
     for j = g.yjlo-1:g.yjhi, i = g.xjlo:g.xjhi
-        lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
-            g.vyL[i, j], g.vyR[i, j], g.csL[i, j], g.csR[i, j])
+        # # davis2
+        # lam_minus[i, j], lam_plus[i, j] = util_speed_davis2(
+        #     g.vyL[i, j], g.vyR[i, j], g.csL[i, j], g.csR[i, j])
+        # roe
+        lam_minus[i, j], lam_plus[i, j] = util_speed_roe(
+            g.rhoL[i, j], g.vyL[i, j], g.uL[i, j, 4], g.pressureL[i, j],
+            g.rhoR[i, j], g.vyR[i, j], g.uR[i, j, 4], g.pressureR[i, j])
     end
     alpha_minus = max.(0.0, -1.0 .* lam_minus)
     alpha_plus = max.(0.0, lam_plus)

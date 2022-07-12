@@ -2,9 +2,12 @@
 
 local/
 trys/
-figures
+figures/
 tests/
 examples.2/
+files
+README.html
+*.ignore/
 
 # General
 .DS_Store
@@ -12,7 +15,8 @@ examples.2/
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*

@@ -35,6 +35,7 @@ function reconstruct(g::Grid, theta::Float64=1.5)
 end
 
 
+# Interpolate primitive variables in the x component
 function interpolate_x(g::Grid2d)
     theta = 1.5
     cdiff = similar(g.prims)
@@ -54,8 +55,6 @@ function interpolate_x(g::Grid2d)
         g.csL[i, j] = prim2cs(g.rhoL[i, j], g.pressureL[i, j], g.gamma)
         g.csR[i, j] = prim2cs(g.rhoR[i, j], g.pressureR[i, j], g.gamma)
     end
-    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
 end
 
 
@@ -78,6 +77,4 @@ function interpolate_y(g::Grid2d)
         g.csL[i, j] = prim2cs(g.rhoL[i, j], g.pressureL[i, j], g.gamma)
         g.csR[i, j] = prim2cs(g.rhoR[i, j], g.pressureR[i, j], g.gamma)
     end
-    prim2cons!(g.rhoL, g.vxL, g.vyL, g.pressureL, g.uL, g.gamma) # no potential sqrt error
-    prim2cons!(g.rhoR, g.vxR, g.vyR, g.pressureR, g.uR, g.gamma)
 end

@@ -111,6 +111,7 @@ Plotting function: $(plotit)
     try
         while true
             dt = calc_dt(g)
+            println("t = $(g.t), dt = $(dt)")
             integrator(g, dt, solver, rebuild)
             @debug "count = $(count), t = $(g.t), tout = $(tout)"
             # @debug "max,min(g.vel) = $(maximum(abs.(g.vel))), $(minimum(abs.(g.vel)))"
