@@ -3,7 +3,7 @@
 
 * Moved to Hydro.jl
 
-Moved to https://github.com/chongchonghe/Hydro.jl which is a registered Julia module which you can install via `Pkg.add("Hydro")`.
+Moved to https://github.com/chongchonghe/Hydro.jl which is a registered Julia module which you can install via ~Pkg.add("Hydro")~.
 
 * Juro: a hydro code written in pure Julia
 
